@@ -39,11 +39,12 @@ secondary channel is then the primary one.
 Include in your dependencies:
 [![Clojars Project](http://clojars.org/io.replikativ/kabel-auth/latest-version.svg)](http://clojars.org/io.replikativ/kabel-auth)
 
-You can instantiate the middleware like this:
+You can instantiate the in-band auth middleware like this:
 
 ~~~clojure
 (require '[kabel-auth.core :refer [auth inbox-auth register-external-token external-tokens]]
-         '[postal.core :refer [send-message]])
+         '[postal.core :refer [send-message]]
+         '[superv.async :refer [S]])
 
 (auth (atom #{"trusted-peer.com" "localhost" "127.0.0.1"})
       receiver-token-store ;; some (dedicated) konserve store
@@ -61,7 +62,7 @@ You can instantiate the middleware like this:
                          :to user
                          :subject "Please authenticate"
                          :body (str "Visit http://your-end-point/auth/" ext-tok)})))
-      [peer [in out]])
+  [S peer [in out]])
 ~~~
 
 Furthermore you have to provide an end-point for authentication:
@@ -111,3 +112,57 @@ clojure -M:local-kabel:test
 
 The legacy Leiningen file `project.clj` remains for compatibility, but
 `deps.edn` is the primary configuration going forward.
+
+## New middleware and server handler
+
+### Session middleware
+
+This project provides a small session/metadata middleware that attaches local identity
+to inbound messages and strips any local-only metadata from outbound messages:
+
+```clojure
+(require '[kabel-auth.session :as session]
+         '[superv.async :refer [S]])
+
+;; Optionally, provide a function to compute extra fields (like :kabel/principal)
+;; for inbound messages.
+(defn session-fn [S peer msg]
+  ;; Return a map to merge, or nil if none.
+  (when-let [u (:user msg)]
+    {:kabel/principal {:user u}}))
+
+(def wrapped [S peer-ch]
+  (session/session-middleware session-fn [S peer-ch]))
+
+;; Outbound messages will have any top-level :kabel/* keys removed automatically.
+```
+
+Utility function `kabel-auth.session/strip-kabel-meta` removes top-level `:kabel/*`
+keys from a message map.
+
+### Authenticated http-kit handler
+
+For server-side WebSocket upgrades, use an authenticated http-kit handler that injects
+the validated principal from the initial Ring request into inbound messages as
+`:kabel/principal`:
+
+```clojure
+(require '[kabel-auth.http-kit :as auth-hk]
+         '[superv.async :refer [S]])
+
+(defn validate-request! [req]
+  ;; Inspect headers/cookies/mTLS/etc.
+  (when-let [auth (get-in req [:headers "authorization"])]
+    ;; e.g. after verifying JWT/OIDC, return a map describing the principal
+    {:sub "alice@example.org"}))
+
+(def handler
+  (auth-hk/create-authenticated-http-kit-handler! S "ws://localhost:8080/ws" :peer-id validate-request!))
+
+;; Messages received on the resulting input channel will include :kabel/principal
+;; when available. Combine with session-middleware to ensure local-only fields do
+;; not leak on outbound.
+```
+
+Note: If you want to reject unauthenticated connections at upgrade time, make your
+`validate-request!` throw; the handler will close the channel.
