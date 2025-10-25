@@ -90,3 +90,24 @@ Copyright © 2016 Christian Weilbach
 
 Distributed under the Eclipse Public License either version 1.0 or (at
 your option) any later version.
+
+## Development (Clojure CLI)
+
+This project now includes a `deps.edn` for use with the Clojure CLI.
+
+- Run the test suite:
+
+```bash
+clojure -M:test
+```
+
+If you have the sibling `kabel` project checked out next to this repo and want to
+develop against its source locally, use the `:local-kabel` alias which overrides
+the Maven dependency with a local path:
+
+```bash
+clojure -M:local-kabel:test
+```
+
+The legacy Leiningen file `project.clj` remains for compatibility, but
+`deps.edn` is the primary configuration going forward.

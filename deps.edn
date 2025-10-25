@@ -1,0 +1,23 @@
+{:paths ["src"]
+ :deps {org.clojure/clojure {:mvn/version "1.12.0"}
+        io.replikativ/kabel {:local/root "../kabel"}
+        io.replikativ/hasch {:mvn/version "0.3.94"}
+        io.replikativ/konserve {:mvn/version "0.8.321"}
+        io.replikativ/superv.async {:mvn/version "0.3.48"}}
+ :aliases {:test {:extra-paths ["test"]
+                  :main-opts ["-m" "kabel-auth.test-runner"]}
+           ;; Use the sibling ../kabel source during local development
+           :local-kabel {:extra-deps {io.replikativ/kabel {:local/root "kabel"}}}
+
+           :repl-mcp {:main-opts ["-m" "is.simm.repl-mcp"]
+                      :extra-paths ["test"] ;; If you want it to be able to run the tests
+                      ;; Option for clj-async-profiler
+                      :jvm-opts ["-Djdk.attach.allowAttachSelf"
+                                 "-XX:+UnlockDiagnosticVMOptions"
+                                 "-XX:+DebugNonSafepoints"
+                                 "-XX:+EnableDynamicAgentLoading"
+                                 "--enable-native-access=ALL-UNNAMED"]
+                      :extra-deps {is.simm/repl-mcp {:git/url "https://github.com/simm-is/repl-mcp" :git/sha "9c6eebd6e07052ac6bf20de05edbb37ca6b26518"}
+                                   org.slf4j/slf4j-api {:mvn/version "2.0.17"}
+                                   org.slf4j/slf4j-simple {:mvn/version "2.0.17"}}}}
+ :mvn/repos {"clojars" {:url "https://repo.clojars.org/"}}}
