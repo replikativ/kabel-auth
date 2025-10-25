@@ -10,6 +10,8 @@
   (:require [jsonista.core :as j]
             [clojure.string :as str])
   (:import (java.util Base64 Date)
+           (java.security KeyFactory PublicKey PrivateKey Signature)
+           (java.security.spec X509EncodedKeySpec PKCS8EncodedKeySpec)
            (javax.crypto Mac)
            (javax.crypto.spec SecretKeySpec)))
 
@@ -29,6 +31,25 @@
 (defn- b64->json [^String s]
   (-> s b64url-decode-bytes (j/read-value json-mapper)))
 
+;; --- RSA helpers (PEM <-> keys) ---
+(defn- strip-pem ^String [^String pem]
+  (-> pem
+      (str/replace #"-----BEGIN [^-]+-----" "")
+      (str/replace #"-----END [^-]+-----" "")
+      (str/replace #"\s" "")))
+
+(defn- public-key-from-pem ^PublicKey [^String pem]
+  (let [kf (KeyFactory/getInstance "RSA")
+        bytes (.decode (Base64/getDecoder) (strip-pem pem))
+        spec (X509EncodedKeySpec. bytes)]
+  (.generatePublic kf spec)))
+
+(defn- private-key-from-pem ^PrivateKey [^String pem]
+  (let [kf (KeyFactory/getInstance "RSA")
+        bytes (.decode (Base64/getDecoder) (strip-pem pem))
+        spec (PKCS8EncodedKeySpec. bytes)]
+  (.generatePrivate kf spec)))
+
 (defn- hmac-sha256 [^bytes key-bytes ^bytes data]
   (let [algo "HmacSHA256"
         mac (Mac/getInstance algo)]
@@ -46,6 +67,23 @@
         sig-bytes (hmac-sha256 (.getBytes secret utf8) signing-input)
         sig-b64 (b64url-encode-bytes sig-bytes)]
     (str header-b64 "." payload-b64 "." sig-b64)))
+
+(defn sign-rs256
+  "Create an RS256 JWT for testing from a PrivateKey or PEM string."
+  [priv-key-or-pem claims]
+  (let [^PrivateKey priv-key (if (instance? PrivateKey priv-key-or-pem)
+                               priv-key-or-pem
+                               (private-key-from-pem priv-key-or-pem))
+        header {:alg "RS256" :typ "JWT"}
+        header-b64 (json->b64 header)
+        payload-b64 (json->b64 claims)
+        signing-input (.getBytes (str header-b64 "." payload-b64) utf8)
+        ^Signature sig (Signature/getInstance "SHA256withRSA")]
+    (.initSign sig priv-key)
+    (.update sig signing-input)
+    (let [sig-bytes (.sign sig)
+          sig-b64 (b64url-encode-bytes sig-bytes)]
+      (str header-b64 "." payload-b64 "." sig-b64))))
 
 (defn- parse-token [^String token]
   (let [[h p s :as parts] (when token (str/split token #"\."))]
@@ -80,7 +118,7 @@
   true)
 
 (defn build-bearer-validator
-  [{:keys [alg secret required-claims leeway-seconds]
+  [{:keys [alg secret public-key required-claims leeway-seconds]
     :or {alg :HS256 leeway-seconds 60}}]
   (fn [req]
     (try
@@ -95,6 +133,19 @@
                        (when required-claims
                          (check-required-claims! payload required-claims))
                        ;; Return principal claims (entire payload)
+                       payload)
+              :RS256 (let [^PublicKey pub (cond
+                                            (instance? PublicKey public-key) public-key
+                                            (string? public-key) (public-key-from-pem public-key)
+                                            :else (throw (ex-info ":public-key must be a PublicKey or PEM string" {:got (type public-key)})))
+                               ^Signature v (Signature/getInstance "SHA256withRSA")]
+                       (.initVerify v pub)
+                       (.update v signing-input)
+                       (when-not (.verify v sig)
+                         (throw (ex-info "Invalid signature" {})))
+                       (check-time-claims! payload leeway-seconds)
+                       (when required-claims
+                         (check-required-claims! payload required-claims))
                        payload)
               (throw (ex-info "Unsupported alg" {:alg alg}))))))
       (catch Exception _

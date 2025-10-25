@@ -148,13 +148,14 @@ the validated principal from the initial Ring request into inbound messages as
 
 ```clojure
 (require '[kabel-auth.http-kit :as auth-hk]
+         '[kabel-auth.jwt :as jwt]
          '[superv.async :refer [S]])
 
-(defn validate-request! [req]
-  ;; Inspect headers/cookies/mTLS/etc.
-  (when-let [auth (get-in req [:headers "authorization"])]
-    ;; e.g. after verifying JWT/OIDC, return a map describing the principal
-    {:sub "alice@example.org"}))
+;; Example: JWT Bearer validator (HS256)
+(def validate-request!
+  (jwt/build-bearer-validator {:alg :HS256
+                               :secret "changeme"
+                               :required-claims {:iss "your-issuer" :aud "your-audience"}}))
 
 (def handler
   (auth-hk/create-authenticated-http-kit-handler! S "ws://localhost:8080/ws" :peer-id validate-request!))
@@ -162,6 +163,17 @@ the validated principal from the initial Ring request into inbound messages as
 ;; Messages received on the resulting input channel will include :kabel/principal
 ;; when available. Combine with session-middleware to ensure local-only fields do
 ;; not leak on outbound.
+```
+
+If you use RS256 (public key verification):
+
+```clojure
+(def validate-rs256!
+  (jwt/build-bearer-validator {:alg :RS256
+                               :public-key "-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----"}))
+
+(def handler
+  (auth-hk/create-authenticated-http-kit-handler! S "ws://localhost:8080/ws" :peer-id validate-rs256!))
 ```
 
 Note: If you want to reject unauthenticated connections at upgrade time, make your
