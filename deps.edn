@@ -3,7 +3,8 @@
         io.replikativ/kabel {:local/root "../kabel"}
         io.replikativ/hasch {:mvn/version "0.3.94"}
         io.replikativ/konserve {:mvn/version "0.8.321"}
-        io.replikativ/superv.async {:mvn/version "0.3.48"}}
+        io.replikativ/superv.async {:mvn/version "0.3.48"}
+        metosin/jsonista {:mvn/version "0.3.13"}}
  :aliases {:test {:extra-paths ["test"]
                   :main-opts ["-m" "kabel-auth.test-runner"]}
            ;; Use the sibling ../kabel source during local development

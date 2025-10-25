@@ -2,7 +2,8 @@
   (:require [clojure.test :as t]
             ;; ensure tests are loaded
             [kabel-auth.core-test]
-            [kabel-auth.session-test]))
+            [kabel-auth.session-test]
+            [kabel-auth.jwt-test]))
 
 (defn -main [& _]
   (let [;; Limit to our project test namespaces only
