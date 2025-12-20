@@ -1,5 +1,0 @@
--Djdk.attach.allowAttachSelf
--XX:+UnlockDiagnosticVMOptions
--XX:+DebugNonSafepoints
--XX:+EnableDynamicAgentLoading
---enable-native-access=ALL-UNNAMED

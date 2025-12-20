@@ -9,8 +9,10 @@
                      :refer [<! >! >!! <!! timeout chan alt! go put!
                              go-loop pub sub unsub close!]]
                :cljs [cljs.core.async :as async
-                      :refer [<! >! timeout chan put! pub sub unsub close!]]))
-  #?(:cljs (:require-macros [superv.async :refer [<<? <? go-try go-loop-try]])))
+                      :refer [<! >! timeout chan put! pub sub unsub close! alts!]]))
+  #?(:cljs (:require-macros [superv.async :refer [<<? <? go-try go-loop-try]]
+                          [cljs.core.async.macros :refer [go go-loop alt!]]
+                          [kabel.platform-log :refer [debug info warn error]])))
 
 (defn now [] #?(:clj (java.util.Date.)
                 :cljs (js/Date.)))
@@ -146,7 +148,7 @@
 
     ;; sender
     (sub p ::auth-request auth-request-ch)
-  (auth-reply S auth-request-ch auth-fn)
+    (auth-reply S auth-request-ch auth-fn)
 
     (sub p ::auth-token store-token-ch)
     (store-token S sender-token-store store-token-ch)
@@ -160,3 +162,83 @@
 ;; Re-export selected session utilities for convenience
 (def strip-kabel-meta session/strip-kabel-meta)
 (def session-middleware session/session-middleware)
+
+;; ============================================================================
+;; New API (v2) - JWT-based authentication with password and OAuth support
+;; ============================================================================
+;;
+;; The legacy API above (auth, auth-request, etc.) uses konserve-based token
+;; storage and a custom passwordless flow. The new API below uses industry-
+;; standard JWT tokens and supports:
+;; - Email/password authentication
+;; - OAuth providers (Google, GitHub, etc.)
+;; - Token refresh without reconnecting
+;; - Dev mode for easy local development
+;;
+;; See doc/DESIGN.md for full documentation.
+;;
+;; Quick start:
+;;   ;; 1. Create auth store
+;;   (require '[kabel-auth.store.memory :refer [memory-auth-store]])
+;;   (def store (memory-auth-store))
+;;
+;;   ;; 2. Configure auth
+;;   (def config {:store store
+;;                :dev-mode false
+;;                :jwt {:secret "your-secret" :issuer "your-app"}})
+;;
+;;   ;; 3. HTTP routes for login/register
+;;   (require '[kabel-auth.routes :as routes])
+;;   (def http-handler (routes/auth-handler config))
+;;
+;;   ;; 4. WebSocket middleware for kabel
+;;   (require '[kabel-auth.websocket :as ws])
+;;   (def ws-auth-mw (ws/validate-middleware {:jwt (:jwt config)}))
+;;
+;;   ;; 5. Use with kabel peer
+;;   (peer/server-peer S handler peer-id ws-auth-mw)
+;;
+;; ============================================================================
+
+#?(:clj
+   (do
+     ;; Re-export main v2 API for convenience
+     (require '[kabel-auth.routes :as routes]
+              '[kabel-auth.websocket :as websocket]
+              '[kabel-auth.middleware :as middleware]
+              '[kabel-auth.store.protocol :as store-protocol]
+              '[kabel-auth.store.memory :as store-memory]
+              '[kabel-auth.password :as password]
+              '[kabel-auth.config :as config])
+
+     ;; HTTP routes
+     (def auth-routes routes/auth-routes)
+     (def auth-handler routes/auth-handler)
+
+     ;; Authentication middleware
+     (def validate-middleware websocket/validate-middleware)
+     (def authenticate-middleware websocket/authenticate-middleware)
+     (def auth-middleware websocket/auth-middleware)
+
+     ;; Ring middleware
+     (def wrap-auth middleware/wrap-auth)
+     (def require-auth middleware/require-auth)
+
+     ;; Store
+     (def memory-auth-store store-memory/memory-auth-store)
+
+     ;; Password utilities
+     (def hash-password password/hash-password)
+     (def verify-password password/verify-password)
+     (def validate-password password/validate-password)
+     (def generate-refresh-token password/generate-refresh-token)
+
+     ;; Principal helpers
+     (def ^:dynamic *principal* websocket/*principal*)
+     (def with-principal websocket/with-principal)
+     (def current-principal websocket/current-principal)
+     (def require-principal websocket/require-principal)
+
+     ;; Config
+     (def merge-config config/merge-config)
+     (def validate-config config/validate-config)))
