@@ -82,8 +82,8 @@
      Me     -> {:type :kabel/auth-ok}"
   [{:keys [jwt dev-mode dev-principal on-auth]}]
   (let [default-dev-principal {:sub "dev-user"
-                                :email "dev@localhost"
-                                :name "Developer"}]
+                               :email "dev@localhost"
+                               :name "Developer"}]
     (fn [[S peer [in out]]]
       (let [new-in (chan)
             new-out (chan)
@@ -92,63 +92,63 @@
 
         ;; Process incoming messages
         (go-loop-try S [msg (<? S in)]
-          (when msg
-            (let [msg-type (:type msg)]
-              (cond
+                     (when msg
+                       (let [msg-type (:type msg)]
+                         (cond
                 ;; Initial authentication
-                (= msg-type auth-msg-type)
-                (let [token (:token msg)
-                      principal #?(:clj (if dev-mode
-                                          (or dev-principal default-dev-principal)
-                                          (validate-token jwt token))
-                                   :cljs (or dev-principal default-dev-principal))]
-                  (if principal
-                    (do
-                      (reset! principal-atom principal)
-                      (when on-auth (on-auth principal))
-                      (info {:event :auth-success :email (:email principal)})
-                      (>! out {:type auth-ok-msg-type :principal principal}))
-                    (do
-                      (warn {:event :auth-failed})
-                      (>! out {:type auth-error-msg-type
-                               :error "invalid-token"
-                               :message "Token is invalid or expired"}))))
+                           (= msg-type auth-msg-type)
+                           (let [token (:token msg)
+                                 principal #?(:clj (if dev-mode
+                                                     (or dev-principal default-dev-principal)
+                                                     (validate-token jwt token))
+                                              :cljs (or dev-principal default-dev-principal))]
+                             (if principal
+                               (do
+                                 (reset! principal-atom principal)
+                                 (when on-auth (on-auth principal))
+                                 (info {:event :auth-success :email (:email principal)})
+                                 (>! out {:type auth-ok-msg-type :principal principal}))
+                               (do
+                                 (warn {:event :auth-failed})
+                                 (>! out {:type auth-error-msg-type
+                                          :error "invalid-token"
+                                          :message "Token is invalid or expired"}))))
 
                 ;; Refresh authentication
-                (= msg-type auth-refresh-msg-type)
-                (let [token (:token msg)
-                      principal #?(:clj (if dev-mode
-                                          (or dev-principal default-dev-principal)
-                                          (validate-token jwt token))
-                                   :cljs (or dev-principal default-dev-principal))]
-                  (if principal
-                    (do
-                      (reset! principal-atom principal)
-                      (info {:event :auth-refresh-success :email (:email principal)})
-                      (>! out {:type auth-ok-msg-type}))
-                    (do
-                      (warn {:event :auth-refresh-failed})
-                      (>! out {:type auth-error-msg-type
-                               :error "invalid-token"
-                               :message "Token is invalid or expired"}))))
+                           (= msg-type auth-refresh-msg-type)
+                           (let [token (:token msg)
+                                 principal #?(:clj (if dev-mode
+                                                     (or dev-principal default-dev-principal)
+                                                     (validate-token jwt token))
+                                              :cljs (or dev-principal default-dev-principal))]
+                             (if principal
+                               (do
+                                 (reset! principal-atom principal)
+                                 (info {:event :auth-refresh-success :email (:email principal)})
+                                 (>! out {:type auth-ok-msg-type}))
+                               (do
+                                 (warn {:event :auth-refresh-failed})
+                                 (>! out {:type auth-error-msg-type
+                                          :error "invalid-token"
+                                          :message "Token is invalid or expired"}))))
 
                 ;; Regular message - add principal if authenticated
-                :else
-                (let [current-principal @principal-atom]
-                  (>! new-in (if current-principal
-                               (assoc msg :kabel/principal current-principal)
-                               msg)))))
-            (recur (<? S in))))
+                           :else
+                           (let [current-principal @principal-atom]
+                             (>! new-in (if current-principal
+                                          (assoc msg :kabel/principal current-principal)
+                                          msg)))))
+                       (recur (<? S in))))
 
         ;; Pass through outgoing messages (strip :kabel/* keys for security)
         (go-loop-try S [msg (<? S new-out)]
-          (when msg
-            (let [clean-msg (into {} (remove (fn [[k _]]
-                                               (and (keyword? k)
-                                                    (= "kabel" (namespace k))))
-                                             msg))]
-              (>! out clean-msg))
-            (recur (<? S new-out))))
+                     (when msg
+                       (let [clean-msg (into {} (remove (fn [[k _]]
+                                                          (and (keyword? k)
+                                                               (= "kabel" (namespace k))))
+                                                        msg))]
+                         (>! out clean-msg))
+                       (recur (<? S new-out))))
 
         [S peer [new-in new-out]]))))
 
@@ -182,39 +182,39 @@
     (let [new-in (chan 1000)]
       ;; Send auth message immediately using lexical `out`
       (go-try S
-        (>! out {:type auth-msg-type :token token})
-        (debug {:event :auth-sent})
+              (>! out {:type auth-msg-type :token token})
+              (debug {:event :auth-sent})
 
         ;; Wait for auth response
-        (let [first-msg (<? S in)]
-          (cond
-            (= (:type first-msg) auth-ok-msg-type)
-            (do
-              (info {:event :client-auth-success :email (get-in first-msg [:principal :email])})
-              (when on-auth (on-auth (:principal first-msg)))
+              (let [first-msg (<? S in)]
+                (cond
+                  (= (:type first-msg) auth-ok-msg-type)
+                  (do
+                    (info {:event :client-auth-success :email (get-in first-msg [:principal :email])})
+                    (when on-auth (on-auth (:principal first-msg)))
               ;; Continue processing remaining messages
-              (loop []
-                (when-let [msg (<? S in)]
-                  (>! new-in msg)
-                  (recur))))
+                    (loop []
+                      (when-let [msg (<? S in)]
+                        (>! new-in msg)
+                        (recur))))
 
-            (= (:type first-msg) auth-error-msg-type)
-            (do
-              (warn {:event :client-auth-failed :error (:error first-msg)})
-              (when on-error (on-error first-msg))
+                  (= (:type first-msg) auth-error-msg-type)
+                  (do
+                    (warn {:event :client-auth-failed :error (:error first-msg)})
+                    (when on-error (on-error first-msg))
               ;; Don't proceed - auth failed
-              (close! new-in))
+                    (close! new-in))
 
-            :else
+                  :else
             ;; Not an auth response - server might not have auth middleware
             ;; Pass through and continue normally
-            (do
-              (debug {:event :auth-no-response :first-msg-type (:type first-msg)})
-              (>! new-in first-msg)
-              (loop []
-                (when-let [msg (<? S in)]
-                  (>! new-in msg)
-                  (recur)))))))
+                  (do
+                    (debug {:event :auth-no-response :first-msg-type (:type first-msg)})
+                    (>! new-in first-msg)
+                    (loop []
+                      (when-let [msg (<? S in)]
+                        (>! new-in msg)
+                        (recur)))))))
 
       [S peer [new-in out]])))
 

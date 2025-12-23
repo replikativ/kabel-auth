@@ -1,7 +1,7 @@
 (ns kabel-auth.session-test
-       (:require [clojure.test :refer [deftest is]]
-                                          [clojure.core.async :as async :refer [chan <!! close! put!]]
-                                          [kabel-auth.session :as session]))
+  (:require [clojure.test :refer [deftest is]]
+            [clojure.core.async :as async :refer [chan <!! close! put!]]
+            [kabel-auth.session :as session]))
 
 (deftest strip-kabel-meta-basic
   (is (= {:a 1}
@@ -22,4 +22,4 @@
     (is (= {:type :foo :payload 1}
            (<!! out)))
     (close! out')
-       (close! in')))
+    (close! in')))

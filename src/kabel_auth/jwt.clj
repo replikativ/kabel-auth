@@ -42,13 +42,13 @@
   (let [kf (KeyFactory/getInstance "RSA")
         bytes (.decode (Base64/getDecoder) (strip-pem pem))
         spec (X509EncodedKeySpec. bytes)]
-  (.generatePublic kf spec)))
+    (.generatePublic kf spec)))
 
 (defn- private-key-from-pem ^PrivateKey [^String pem]
   (let [kf (KeyFactory/getInstance "RSA")
         bytes (.decode (Base64/getDecoder) (strip-pem pem))
         spec (PKCS8EncodedKeySpec. bytes)]
-  (.generatePrivate kf spec)))
+    (.generatePrivate kf spec)))
 
 (defn- hmac-sha256 [^bytes key-bytes ^bytes data]
   (let [algo "HmacSHA256"
@@ -138,7 +138,7 @@
                                             (instance? PublicKey public-key) public-key
                                             (string? public-key) (public-key-from-pem public-key)
                                             :else (throw (ex-info ":public-key must be a PublicKey or PEM string" {:got (type public-key)})))
-                               ^Signature v (Signature/getInstance "SHA256withRSA")]
+                           ^Signature v (Signature/getInstance "SHA256withRSA")]
                        (.initVerify v pub)
                        (.update v signing-input)
                        (when-not (.verify v sig)
@@ -150,4 +150,4 @@
               (throw (ex-info "Unsupported alg" {:alg alg}))))))
       (catch Exception _
         ;; Be conservative: return nil on any error.
-    nil))))
+        nil))))

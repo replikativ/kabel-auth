@@ -20,12 +20,12 @@
           receiver-token-store (<?? S (new-mem-store))
           sender-token-store (<?? S (new-mem-store))
           [_ _ [new-in new-out]] (auth trusted-connections
-                                     receiver-token-store
-                                     sender-token-store
-                                     dispatch-fn
-                                     auth-fn
-                                     #(put! inbox-auth %) ;; loop
-                                     [S nil [in out]])]
+                                       receiver-token-store
+                                       sender-token-store
+                                       dispatch-fn
+                                       auth-fn
+                                       #(put! inbox-auth %) ;; loop
+                                       [S nil [in out]])]
       #_(go-loop [i (<! new-in)]
           (debug "PASSED:" i)
           (recur (<! new-in)))
@@ -42,15 +42,15 @@
              {:type :kabel-auth.core/auth-request,
               :user "eve@topiq.es",
               :protocol :loop}))
-                     (let [m (<?? S out)]
-                            (is (= (:type m) :kabel-auth.core/auth-token))
-                            (is (contains? m :token)))
+      (let [m (<?? S out)]
+        (is (= (:type m) :kabel-auth.core/auth-token))
+        (is (contains? m :token)))
       (is (= (<?? S new-in)
              {:type :pub/downstream,
               :downstream {:foo :bar},
               :user "loop:eve@topiq.es",
               :crdt-id 1,
-               :connection "localhost"
+              :connection "localhost"
               :sender 4441}))
       (>!! in {:type :pub/downstream ;; will pass through with session
                :downstream {:foo :bars}
@@ -58,7 +58,7 @@
                :crdt-id 1
                :connection "localhost"
                :sender 4441})
-       (is (= (<?? S new-in)
+      (is (= (<?? S new-in)
              {:type :pub/downstream,
               :downstream {:foo :bars},
               :user "loop:eve@topiq.es",
