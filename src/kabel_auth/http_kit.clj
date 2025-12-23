@@ -11,20 +11,20 @@
 
 (defn create-authenticated-http-kit-handler!
   "Creates an http-kit WebSocket handler that attaches a validated principal to
-	every inbound message as :kabel/principal. The principal is derived once from
-	the initial Ring request using the provided `validate-request-fn`, which
-	should return a map (e.g., {:sub " user " ...}) or nil if unauthenticated.
+  every inbound message as :kabel/principal. The principal is derived once from
+  the initial Ring request using the provided `validate-request-fn`, which
+  should return a map (e.g., {:sub \"user\" ...}) or nil if unauthenticated.
 
-	Returns a map compatible with kabel's server peer: {:new-conns :channel-hub
-	:start-fn :url :handler}.
 
-	Notes:
-	- This mirrors kabel.http-kit/create-http-kit-handler! while adding principal
-		injection. Outbound messages are sent unchanged; downstream middleware like
-		kabel-auth.session/session-middleware will strip :kabel/* on outbound.
-	- If you want to reject unauthenticated connections up-front, have
-		`validate-request-fn` throw; this handler will close the channel immediately.
-	"
+  Returns a map compatible with kabel's server peer: {:new-conns :channel-hub
+  :start-fn :url :handler}.
+
+  Notes:
+  - This mirrors kabel.http-kit/create-http-kit-handler! while adding principal
+    injection. Outbound messages are sent unchanged; downstream middleware like
+    kabel-auth.session/session-middleware will strip :kabel/* on outbound.
+  - If you want to reject unauthenticated connections up-front, have
+    validate-request-fn throw; this handler will close the channel immediately."
   ([S url peer-id validate-request-fn]
    (create-authenticated-http-kit-handler! S url peer-id validate-request-fn (atom {}) (atom {})))
   ([S url peer-id validate-request-fn _read-handlers _write-handlers]
