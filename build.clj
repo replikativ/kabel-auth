@@ -2,7 +2,7 @@
   (:require [clojure.tools.build.api :as b]
             [deps-deploy.deps-deploy :as dd]))
 
-(def lib 'io.replikativ/kabel-auth)
+(def lib 'org.replikativ/kabel-auth)
 (def major 0)
 (def minor 1)
 (defn commit-count [] (b/git-count-revs nil))
