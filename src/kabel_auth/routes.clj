@@ -40,13 +40,16 @@
   (let [{:keys [secret private-key issuer audience access-token-expiry refresh-token-expiry]}
         (:jwt config)
         now (quot (System/currentTimeMillis) 1000)
-        access-claims {:sub (str (:user/id user))
-                       :email (:user/email user)
-                       :name (:user/name user)
-                       :iat now
-                       :exp (+ now access-token-expiry)
-                       :iss issuer
-                       :aud audience}
+        extra-claims (when-let [f (:extra-claims-fn config)]
+                       (f user))
+        access-claims (merge {:sub (str (:user/id user))
+                              :email (:user/email user)
+                              :name (:user/name user)
+                              :iat now
+                              :exp (+ now access-token-expiry)
+                              :iss issuer
+                              :aud audience}
+                             extra-claims)
         access-token (if secret
                        (jwt/sign-hs256 secret access-claims)
                        (jwt/sign-rs256 private-key access-claims))
@@ -118,11 +121,15 @@
       (if-let [user (store/find-user-by-email store email)]
         (if (pwd/verify-password password (:user/password-hash user))
           (let [tokens (generate-tokens config user)
-                _ (create-session! config user (:refresh_token tokens) request)]
+                _ (create-session! config user (:refresh_token tokens) request)
+                ;; Update last-login
+                _ (try (store/update-user! store (:user/id user) {:user/last-login (java.util.Date.)})
+                       (catch Exception _ nil))]
             (json-response 200 (assoc tokens
-                                      :user {:id (str (:user/id user))
-                                             :email (:user/email user)
-                                             :name (:user/name user)})))
+                                      :user (cond-> {:id (str (:user/id user))
+                                                     :email (:user/email user)
+                                                     :name (:user/name user)}
+                                              (:user/role user) (assoc :role (name (:user/role user)))))))
           (error-response 401 "invalid-credentials" "Invalid email or password"))
         (error-response 401 "invalid-credentials" "Invalid email or password")))))
 
@@ -142,13 +149,16 @@
             (let [{:keys [secret private-key issuer audience access-token-expiry]}
                   (:jwt config)
                   now (quot (System/currentTimeMillis) 1000)
-                  access-claims {:sub (str (:user/id user))
-                                 :email (:user/email user)
-                                 :name (:user/name user)
-                                 :iat now
-                                 :exp (+ now access-token-expiry)
-                                 :iss issuer
-                                 :aud audience}
+                  extra-claims (when-let [f (:extra-claims-fn config)]
+                                 (f user))
+                  access-claims (merge {:sub (str (:user/id user))
+                                        :email (:user/email user)
+                                        :name (:user/name user)
+                                        :iat now
+                                        :exp (+ now access-token-expiry)
+                                        :iss issuer
+                                        :aud audience}
+                                       extra-claims)
                   access-token (if secret
                                  (jwt/sign-hs256 secret access-claims)
                                  (jwt/sign-rs256 private-key access-claims))]
