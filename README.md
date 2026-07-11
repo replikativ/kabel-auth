@@ -1,12 +1,33 @@
-# kabel-auth
+# kabel-auth — deprecated, use `kabel` directly
 
-<p align="center">
-<a href="https://clojurians.slack.com/archives/CB7GJAN0L"><img src="https://badgen.net/badge/-/slack?icon=slack&label"/></a>
-<a href="https://clojars.org/io.replikativ/kabel-auth"><img src="https://img.shields.io/clojars/v/io.replikativ/kabel-auth.svg"/></a>
-<a href="https://circleci.com/gh/replikativ/kabel-auth"><img src="https://circleci.com/gh/replikativ/kabel-auth.svg?style=shield"/></a>
-<a href="https://github.com/replikativ/kabel-auth/tree/main"><img src="https://img.shields.io/github/last-commit/replikativ/kabel-auth/main"/></a>
-<a href="https://cljdoc.org/d/io.replikativ/kabel-auth"><img src="https://badgen.net/badge/cljdoc/kabel-auth/blue"/></a>
-</p>
+> ## ⚠️ This library has moved into kabel
+>
+> `kabel-auth` has been **folded into [kabel](https://github.com/replikativ/kabel)**
+> as its optional `kabel.auth.*` subsystem, so the transport and its auth layer
+> now version and release together. **New projects should depend on `kabel`
+> directly** and enable its `:auth` alias — this repository is no longer
+> maintained and will receive no further releases.
+>
+> **Migration**
+>
+> | was (`io.replikativ/kabel-auth`) | now (`org.replikativ/kabel`, `:auth` alias) |
+> |---|---|
+> | `kabel-auth.jwt` | `kabel.auth.jwt` |
+> | `kabel-auth.http-kit` | `kabel.auth.http-kit` |
+> | `kabel-auth.password` | `kabel.auth.password` |
+> | `kabel-auth.routes` | `kabel.auth.routes` |
+> | `kabel-auth.store.*` | `kabel.auth.store.*` |
+>
+> The kabel version adds a trusted-issuer JWT registry (per-issuer alg pinning),
+> a JWKS resolver for external providers (WorkOS / Clerk / OIDC),
+> **cross-platform HS256** (verify on the JVM *and* in ClojureScript), and a
+> portable `.cljc` `AuthStore`. See kabel's README → **Authentication (optional)**.
+> The old passwordless `kabel-auth.core` / `kabel-auth.session` namespaces were
+> not carried over.
+>
+> The content below is retained for historical reference only.
+
+---
 
 Authentication middleware for [kabel](https://github.com/replikativ/kabel). Provides multiple authentication strategies for WebSocket connections:
 
